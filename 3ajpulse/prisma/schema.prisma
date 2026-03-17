@@ -1,0 +1,230 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+enum DossierStatus {
+  PROSPECTION
+  CLOSING
+  ACTIVE
+  DORMANT
+  ARCHIVED
+  CANCELLED
+}
+
+enum DossierPhase {
+  PROSPECTION
+  CLOSING
+  LCA
+  LCMP
+  LCSC
+}
+
+enum MissionType {
+  LCA
+  LCMP
+  LCSC
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+  CANCELLED
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+enum PaymentMethod {
+  TRANSFER
+  CARD
+  CHEQUE
+  CASH
+  OTHER
+}
+
+enum Competence {
+  DIRECTION
+  ARCHITECTURE
+  ENGINEERING
+  BIM
+  ADMIN
+}
+
+model Client {
+  id        String   @id @default(cuid())
+  name      String
+  email     String?
+  phone     String?
+  address   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  dossiers Dossier[]
+
+  @@index([name])
+}
+
+model Dossier {
+  id            String        @id @default(cuid())
+  reference     String        @unique
+  title         String
+  status        DossierStatus
+  currentPhase  DossierPhase
+  nextMilestone String?
+  startDate     DateTime?
+  endDate       DateTime?
+
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Restrict)
+
+  tasks      Task[]
+  milestones Milestone[]
+  missions   DossierMission[]
+  timeEntries TimeEntry[]
+  invoices   Invoice[]
+  payments   Payment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([clientId])
+  @@index([status, currentPhase])
+}
+
+model DossierMission {
+  id          String      @id @default(cuid())
+  type        MissionType
+  isEnabled   Boolean     @default(true)
+  startedAt   DateTime?
+  completedAt DateTime?
+
+  dossierId String
+  dossier   Dossier @relation(fields: [dossierId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([dossierId, type])
+  @@index([type])
+}
+
+model Milestone {
+  id          String     @id @default(cuid())
+  title       String
+  dueDate     DateTime?
+  completedAt DateTime?
+
+  dossierId String
+  dossier   Dossier @relation(fields: [dossierId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([dossierId, dueDate])
+}
+
+model Task {
+  id          String     @id @default(cuid())
+  title       String
+  description String?
+  status      TaskStatus @default(TODO)
+  dueDate     DateTime?
+  completedAt DateTime?
+  priority    Int        @default(2) // 1 high, 2 normal, 3 low
+
+  dossierId String
+  dossier   Dossier @relation(fields: [dossierId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([dossierId, status])
+}
+
+model TimeEntry {
+  id         String      @id @default(cuid())
+  date       DateTime
+  minutes    Int
+  competence Competence
+  note       String?
+
+  dossierId String
+  dossier   Dossier @relation(fields: [dossierId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([dossierId, date])
+  @@index([competence, date])
+}
+
+model Invoice {
+  id           String        @id @default(cuid())
+  invoiceNo    String        @unique
+  status       InvoiceStatus @default(DRAFT)
+  issueDate    DateTime      @default(now())
+  dueDate      DateTime?
+  currency     String        @default("EUR")
+  notes        String?
+
+  dossierId String
+  dossier   Dossier @relation(fields: [dossierId], references: [id], onDelete: Restrict)
+
+  lines    InvoiceLine[]
+  payments Payment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([dossierId, status])
+  @@index([issueDate])
+}
+
+model InvoiceLine {
+  id        String  @id @default(cuid())
+  label     String
+  quantity  Decimal @db.Decimal(10, 2)
+  unitPrice Decimal @db.Decimal(10, 2)
+  vatRate   Decimal @db.Decimal(5, 2) @default(20.00)
+
+  invoiceId String
+  invoice   Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+}
+
+model Payment {
+  id        String        @id @default(cuid())
+  receivedAt DateTime     @default(now())
+  amount    Decimal       @db.Decimal(10, 2)
+  method    PaymentMethod @default(TRANSFER)
+  reference String?
+
+  dossierId String
+  dossier   Dossier @relation(fields: [dossierId], references: [id], onDelete: Restrict)
+
+  invoiceId String?
+  invoice   Invoice? @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([dossierId, receivedAt])
+  @@index([invoiceId])
+}
