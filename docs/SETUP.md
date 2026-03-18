@@ -41,19 +41,15 @@ cp .env.example .env
 
 ## 4. Migrations et seed
 
-```bash
-npm run db:generate
-npm run db:push
-npm run db:seed
-```
-
-Ou avec migrations versionnées :
+**Recommandé** (migrations versionnées) :
 
 ```bash
 npm run db:generate
-npm run db:migrate
+npx prisma migrate deploy
 npm run db:seed
 ```
+
+Pour le prototypage local sans migration : `npm run db:push` synchronise le schéma directement.
 
 ## 5. Lancer l'application
 

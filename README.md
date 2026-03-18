@@ -18,7 +18,7 @@ npm install
 cp .env.example .env
 # Éditer .env (DATABASE_URL, AUTH_SECRET)
 npm run db:generate
-npm run db:push
+npx prisma migrate deploy
 npm run db:seed
 npm run dev
 ```
@@ -37,8 +37,9 @@ Ouvrir [http://localhost:3000](http://localhost:3000).
 | `npm run lint` | Vérification ESLint |
 | `npm run test` | Tests Vitest |
 | `npm run db:generate` | Génération client Prisma |
-| `npm run db:push` | Synchronisation schéma → base |
-| `npm run db:migrate` | Migrations versionnées |
+| `npm run db:push` | Prototypage local (sync schéma sans migration) |
+| `npm run db:migrate` | Migrations dev (interactif) |
+| `npx prisma migrate deploy` | Production (applique les migrations) |
 | `npm run db:seed` | Données de démonstration |
 
 ## Structure
@@ -59,6 +60,7 @@ src/
 
 - [Configuration](docs/SETUP.md)
 - [Déploiement](docs/DEPLOY.md)
+- [Smoke-test manuel](docs/SMOKE_TEST.md)
 - [Checklist post-déploiement](docs/POST_DEPLOY.md)
 - [Hors périmètre v1](docs/V1_OUT_OF_SCOPE.md)
 - [Design system](docs/DESIGN_SYSTEM.md)

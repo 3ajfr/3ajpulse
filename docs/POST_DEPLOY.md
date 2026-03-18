@@ -16,8 +16,8 @@
 
 ## Données
 
-- [ ] Migrations appliquées (`db:push` ou `db:migrate`)
-- [ ] Seed exécuté si environnement de démo
+- [ ] Migrations appliquées (`npx prisma migrate deploy`)
+- [ ] Seed exécuté si environnement de démo (`npm run db:seed`)
 - [ ] Sauvegardes PostgreSQL configurées (selon l’hébergeur)
 
 ## Monitoring

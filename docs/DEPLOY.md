@@ -25,20 +25,17 @@ Configurer sur la plateforme :
 
 ### 3. Build et migrations
 
-Avant le premier déploiement :
+**Production** : utiliser les migrations versionnées (recommandé). Avant le premier déploiement et à chaque déploiement :
 
 ```bash
 npm run db:generate
-npm run db:push
+npx prisma migrate deploy
 npm run db:seed
 ```
 
-Ou avec migrations :
+(`db:seed` uniquement au premier déploiement ; les migrations suivantes n'exécutent que `prisma migrate deploy`.)
 
-```bash
-npm run db:migrate
-npm run db:seed
-```
+**Prototypage local** : `npm run db:push` reste disponible pour synchroniser le schéma sans créer de migration. En production, privilégier `prisma migrate deploy`.
 
 ### 4. Déploiement
 
@@ -47,14 +44,55 @@ npm run build
 npm run start
 ```
 
-## Vercel
+## Vercel + Neon (déploiement recommandé)
 
-1. Importer le projet depuis Git
-2. Configurer les variables d’environnement
-3. Optionnel : ajouter un script `postinstall` ou `build` qui exécute `prisma generate`
-4. Déployer
+### 1. Base de données — Neon
 
-Le build Next.js exécute `prisma generate` si configuré dans `package.json` (postinstall).
+1. Créer un projet sur [neon.tech](https://neon.tech)
+2. Copier la **Connection string** depuis le dashboard Neon (`postgresql://...`)
+3. Si le provider requiert SSL, ajouter `?sslmode=require` à la fin de l’URL
+
+### 2. Vercel — Import et variables
+
+1. Importer le repo GitHub depuis [vercel.com/new](https://vercel.com/new)
+2. Framework preset : **Next.js** (détecté automatiquement)
+3. Configurer dans Settings → Environment Variables :
+
+| Variable | Valeur |
+|----------|--------|
+| `DATABASE_URL` | URL Neon copiée |
+| `AUTH_SECRET` | Générer en local : `openssl rand -base64 32` |
+| `AUTH_TRUST_HOST` | `true` |
+| `NEXTAUTH_URL` | URL Vercel du projet (ex. `https://3ajpulse.vercel.app`) |
+
+`prisma generate` s’exécute automatiquement via le script `postinstall` du `package.json` — aucune configuration Build Command supplémentaire n’est nécessaire.
+
+### 3. Migrations et seed — premier déploiement uniquement
+
+Depuis la machine locale avec `DATABASE_URL` de production :
+
+```bash
+DATABASE_URL="<url-neon>" npx prisma migrate deploy
+DATABASE_URL="<url-neon>" npm run db:seed
+```
+
+Ou via Vercel CLI :
+
+```bash
+vercel env pull .env.production.local
+npx prisma migrate deploy
+npm run db:seed
+```
+
+Les déploiements suivants n’exécutent que `prisma migrate deploy` si de nouvelles migrations existent.
+
+### 4. Déploiement continu
+
+Pousser sur `main` déclenche un déploiement automatique. Pour un déploiement preview :
+
+```bash
+vercel
+```
 
 ## Railway / Render / Autres
 
@@ -63,4 +101,4 @@ Le build Next.js exécute `prisma generate` si configuré dans `package.json` (p
 3. Ajouter les autres variables
 4. Build : `npm run build`
 5. Start : `npm run start`
-6. Exécuter migrations/seed manuellement ou via un job one-off
+6. Exécuter `npx prisma migrate deploy` et `npm run db:seed` (seed au premier déploiement seulement) via un script de build ou un job one-off
