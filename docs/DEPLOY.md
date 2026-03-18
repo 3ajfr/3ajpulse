@@ -16,12 +16,12 @@ Créer une base PostgreSQL et récupérer l’URL de connexion (ex. Supabase, Ne
 
 Configurer sur la plateforme :
 
-| Variable        | Description                          | Exemple                          |
-|----------------|--------------------------------------|----------------------------------|
-| `DATABASE_URL` | URL PostgreSQL                       | `postgresql://...`               |
-| `AUTH_SECRET`  | Secret Auth.js (32+ caractères)      | `openssl rand -base64 32`        |
-| `AUTH_TRUST_HOST` | `true` en production             | `true`                           |
-| `NEXTAUTH_URL` | URL publique de l’app                | `https://app.example.com`        |
+| Variable           | Requis          | Description                                                                 |
+|-------------------|-----------------|-----------------------------------------------------------------------------|
+| `DATABASE_URL`    | Toujours        | URL PostgreSQL                                                              |
+| `AUTH_SECRET`     | Toujours        | Secret Auth.js — générer : `openssl rand -base64 32`                          |
+| `AUTH_TRUST_HOST` | En production   | `true` — permet à Auth.js d’inférer l’URL depuis les headers du proxy/Vercel    |
+| `NEXTAUTH_URL`    | Conditionnel    | Optionnel sur Vercel avec `AUTH_TRUST_HOST=true`. À définir pour un domaine personnalisé en production. |
 
 ### 3. Build et migrations
 
@@ -58,33 +58,35 @@ npm run start
 2. Framework preset : **Next.js** (détecté automatiquement)
 3. Configurer dans Settings → Environment Variables :
 
-| Variable | Valeur |
-|----------|--------|
-| `DATABASE_URL` | URL Neon copiée |
-| `AUTH_SECRET` | Générer en local : `openssl rand -base64 32` |
-| `AUTH_TRUST_HOST` | `true` |
-| `NEXTAUTH_URL` | URL Vercel du projet (ex. `https://3ajpulse.vercel.app`) |
+| Variable | Requis | Valeur |
+|----------|--------|--------|
+| `DATABASE_URL` | Oui | URL Neon copiée |
+| `AUTH_SECRET` | Oui | Générer en local : `openssl rand -base64 32` |
+| `AUTH_TRUST_HOST` | Oui | `true` |
+| `NEXTAUTH_URL` | Non (optionnel) | URL du projet Vercel — à définir si domaine personnalisé (ex. `https://3ajpulse.vercel.app`) |
 
 `prisma generate` s’exécute automatiquement via le script `postinstall` du `package.json` — aucune configuration Build Command supplémentaire n’est nécessaire.
 
-### 3. Migrations et seed — premier déploiement uniquement
+### 3. Migrations et seed — étape manuelle (workflow personnel)
 
-Depuis la machine locale avec `DATABASE_URL` de production :
+> **Note** : dans cette configuration, les migrations ne s’exécutent pas automatiquement lors d’un déploiement Vercel. Il s’agit d’une étape manuelle — acceptable pour un projet personnel, non recommandé pour un flux de production automatisé.
 
-```bash
-DATABASE_URL="<url-neon>" npx prisma migrate deploy
-DATABASE_URL="<url-neon>" npm run db:seed
-```
-
-Ou via Vercel CLI :
+**Recommandé — via Vercel CLI** (tire les variables de production) :
 
 ```bash
 vercel env pull .env.production.local
 npx prisma migrate deploy
-npm run db:seed
+npm run db:seed        # premier déploiement uniquement
 ```
 
-Les déploiements suivants n’exécutent que `prisma migrate deploy` si de nouvelles migrations existent.
+**Alternative — variable inline** :
+
+```bash
+DATABASE_URL="<url-neon>" npx prisma migrate deploy
+DATABASE_URL="<url-neon>" npm run db:seed   # premier déploiement uniquement
+```
+
+Pour chaque schéma modifié ultérieurement, re-exécuter `npx prisma migrate deploy` manuellement avant ou après le déploiement Vercel.
 
 ### 4. Déploiement continu
 
@@ -102,3 +104,34 @@ vercel
 4. Build : `npm run build`
 5. Start : `npm run start`
 6. Exécuter `npx prisma migrate deploy` et `npm run db:seed` (seed au premier déploiement seulement) via un script de build ou un job one-off
+
+---
+
+## Flux de déploiement selon le contexte
+
+### 1. Développement local
+
+```bash
+cp .env.example .env          # éditer DATABASE_URL et AUTH_SECRET
+npm install
+npx prisma migrate deploy      # ou npm run db:push pour le prototypage rapide
+npm run db:seed
+npm run dev
+```
+
+Variables requises : `DATABASE_URL` (sinon : fallback dev interne). `AUTH_SECRET` optionnel en dev (fallback interne, ne jamais utiliser en prod).
+
+### 2. Déploiement personnel Vercel + Neon (workflow actuel)
+
+- Migrations et seed : **étape manuelle** depuis la machine locale (voir section ci-dessus)
+- `AUTH_TRUST_HOST=true` sur Vercel : `NEXTAUTH_URL` non requis
+- `NEXTAUTH_URL` : définir uniquement si domaine personnalisé configuré
+- Push sur `main` → déploiement automatique Vercel (build + postinstall)
+
+### 3. Production automatisée (futur)
+
+- Migrations intégrées en CI/CD (ex. GitHub Actions : `prisma migrate deploy` avant deploy)
+- Bases staging et production séparées
+- `NEXTAUTH_URL` défini sur le domaine canonique
+- Enforcement des rôles activé (hors périmètre v1)
+- Sauvegardes Neon configurées
